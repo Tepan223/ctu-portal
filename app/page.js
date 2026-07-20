@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
@@ -208,7 +210,7 @@ export default function Home() {
 
       {/* Modal Login */}
       <Modal
-        title="Login Akun CTU Portal"
+        title="Login"
         open={isLoginModalOpen}
         onCancel={() => {
           if (currentUser) setIsLoginModalOpen(false);
