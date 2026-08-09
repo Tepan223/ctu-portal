@@ -1,53 +1,50 @@
 "use client";
 
 import { useEffect } from "react";
-import { Modal, Form, Input, Select } from "antd";
+import {
+  Modal,
+  Form,
+  Input,
+  Select,
+} from "antd";
 
-export default function UserModal({
+export default function AccountModal({
   open,
-  onCancel,
+  selectedUser,
   onSave,
-  initialValues,
+  onCancel,
 }) {
   const [form] = Form.useForm();
-  const isEditing = Boolean(initialValues);
 
   useEffect(() => {
     if (!open) return;
 
-    if (initialValues) {
+    if (selectedUser) {
       form.setFieldsValue({
-        username: initialValues.username,
-        role: initialValues.role,
-        password: "", // Dikosongkan saat edit demi keamanan
+        username: selectedUser.username,
+        role: selectedUser.role,
+        password: "",
       });
     } else {
       form.resetFields();
+      form.setFieldValue("role", "User");
     }
-  }, [open, initialValues, form]);
-
-  const handleFinish = async (values) => {
-    await onSave(values);
-    form.resetFields();
-  };
+  }, [open, selectedUser, form]);
 
   return (
     <Modal
-      title={isEditing ? "Edit Akun" : "Tambah Akun"}
+      title={selectedUser ? "Edit Akun" : "Tambah Akun"}
       open={open}
-      destroyOnHidden
-      onCancel={() => {
-        form.resetFields();
-        onCancel();
-      }}
+      onCancel={onCancel}
       onOk={() => form.submit()}
-      okText={isEditing ? "Simpan" : "Tambah"}
+      okText="Simpan"
       cancelText="Batal"
+      centered
     >
       <Form
         form={form}
         layout="vertical"
-        onFinish={handleFinish}
+        onFinish={onSave}
       >
         <Form.Item
           label="Username"
@@ -59,26 +56,25 @@ export default function UserModal({
             },
           ]}
         >
-          <Input placeholder="Masukkan username" />
+          <Input placeholder="Username" />
         </Form.Item>
 
         <Form.Item
           label="Password"
           name="password"
-          extra={isEditing ? "Kosongkan jika tidak ingin mengubah password" : ""}
           rules={[
             {
-              required: !isEditing, // Wajib saat Tambah, Opsional saat Edit
+              required: !selectedUser,
               message: "Password wajib diisi",
-            },
-            {
-              min: 6,
-              message: "Password minimal 6 karakter (ketentuan Firebase Auth)",
             },
           ]}
         >
-          <Input.Password 
-            placeholder={isEditing ? "Password baru (opsional)" : "Masukkan password"} 
+          <Input.Password
+            placeholder={
+              selectedUser
+                ? "Kosongkan jika tidak diubah"
+                : "Password"
+            }
           />
         </Form.Item>
 
@@ -88,20 +84,19 @@ export default function UserModal({
           rules={[
             {
               required: true,
-              message: "Pilih role",
+              message: "Role wajib dipilih",
             },
           ]}
         >
           <Select
-            placeholder="Pilih role"
             options={[
               {
-                value: "Admin",
                 label: "Admin",
+                value: "Admin",
               },
               {
-                value: "User",
                 label: "User",
+                value: "User",
               },
             ]}
           />

@@ -1,64 +1,81 @@
-/* ===========================
-   CONTAINER & LAYOUT
-=========================== */
-
 .container {
   min-height: 100vh;
+  padding: 32px 24px;
+  box-sizing: border-box;
+
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  padding: 32px 24px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  background: url("./background/background.png") center / cover no-repeat fixed;
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
 }
 
 .loadingContainer {
+  min-height: 100vh;
+
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  background: #f8fafc;
-}
 
-/* ===========================
-   MAIN CARD CONTAINER
-=========================== */
+  background: #0f0b16;
+}
 
 .linkCard {
   width: 100%;
   max-width: 1600px;
-  background: #ffffff;
-  border-radius: 24px;
   padding: 40px;
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
-}
+  box-sizing: border-box;
 
-/* ===========================
-   HEADER & NAVBAR AREA
-=========================== */
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(59, 130, 246, 0.08);
+}
 
 .topBar {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
+
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f1f5f9;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .logo {
   grid-column: 2;
-  height: 113px;
-  width: auto;
-  object-fit: contain;
-  margin: 0 auto;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
   transition: transform 0.2s ease;
 }
 
 .logo:hover {
   transform: scale(1.03);
+}
+
+.logo_img {
+  width: auto;
+  height: 135px;
+  object-fit: contain;
 }
 
 .userActionArea {
@@ -67,229 +84,238 @@
 }
 
 .header {
-  text-align: center;
-  font-size: 32px;
-  font-weight: 800;
-  color: #0f172a;
   margin-bottom: 36px;
+
+  color: #f1f5f9;
+
+  font-size: 32px;
+  font-weight: 700;
   letter-spacing: -0.5px;
-  position: relative;
+  text-align: center;
 }
 
 .header::after {
   content: "";
+
   display: block;
+
   width: 60px;
   height: 4px;
-  background: #2563eb;
   margin: 10px auto 0;
+
+  background: #3b82f6;
   border-radius: 2px;
 }
 
-/* ===========================
-   GRID LINKS & CARDS
-=========================== */
-
 .links {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
 }
 
 .card {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  height: 160px;
-  border-radius: 20px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  text-decoration: none;
-  color: #334155;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 20px 16px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-}
+  justify-content: flex-start;
 
-.card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #6366f1);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  overflow: hidden;
+
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  color: #1e293b;
+  text-decoration: none;
+
+  transition:
+    transform 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+
+  cursor: pointer;
 }
 
 .card:hover {
   transform: translateY(-6px);
-  background: #0f172a;
-  color: #ffffff;
-  border-color: #0f172a;
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.2);
+
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(255, 255, 255, 0.15);
+
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.3);
+
+  color: #fff;
 }
 
-.card:hover::before {
-  opacity: 1;
-}
-
-/* ===========================
-   CARD CONTENT
-=========================== */
-
-.left {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.cardImage {
   width: 100%;
-}
+  height: 160px;
 
-.icon {
-  width: 56px;
-  height: 56px;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 36px;
-  margin-bottom: 12px;
-  background: #f8fafc;
-  border-radius: 16px;
-  transition: all 0.3s ease;
+
+  flex-shrink: 0;
+
+  overflow: hidden;
+
+  background: rgba(255, 255, 255, 0.3);
+
+  transition: transform 0.3s ease;
 }
 
-.card:hover .icon {
-  background: rgba(255, 255, 255, 0.1);
+.card:hover .cardImage {
+  transform: scale(1.02);
+}
+
+.cardImg {
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+}
+
+.cardIcon {
+  font-size: 56px;
+  line-height: 1;
+
+  transition: transform 0.3s ease;
+}
+
+.card:hover .cardIcon {
   transform: scale(1.1) rotate(4deg);
 }
 
-.title {
-  height: 48px;
+.cardTitle {
+  width: 100%;
+  padding: 16px 14px;
+  box-sizing: border-box;
+
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+
   text-align: center;
+
+  color: #1e293b;
+
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
-  overflow: hidden;
+
   word-break: break-word;
-  padding: 0 4px;
+
+  min-height: 52px;
 }
 
-/* ===========================
-   LOCKED STATE
-=========================== */
+.card:hover .cardTitle {
+  color: #fff;
+}
 
 .lockedContainer {
+  margin-top: 12px;
+  padding: 64px 24px;
+
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  padding: 64px 24px;
+  align-items: center;
+
   text-align: center;
-  background: #f8fafc;
-  border: 2px dashed #cbd5e1;
+
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  border: 2px dashed rgba(255, 255, 255, 0.25);
   border-radius: 20px;
-  margin-top: 12px;
 }
 
 .lockedIcon {
-  font-size: 56px;
-  color: #64748b;
   margin-bottom: 16px;
+
+  color: #cbd5e1;
+  font-size: 56px;
 }
 
 .lockedText {
-  color: #64748b;
-  font-size: 16px;
-  margin-bottom: 24px;
   max-width: 420px;
+  margin: 0 0 24px;
+
+  color: #cbd5e1;
+
+  font-size: 16px;
   line-height: 1.6;
 }
 
-/* ===========================
-   RESPONSIVE DESIGN
-=========================== */
-
-@media (max-width: 1024px) {
-  .links {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
+/* ===== RESPONSIVE 720px ===== */
+@media (max-width: 720px) {
   .container {
-    padding: 16px 12px;
+    padding: 16px 10px;
     align-items: flex-start;
+
+    background-attachment: scroll;
   }
 
   .linkCard {
-    padding: 24px 18px;
-    border-radius: 20px;
+    padding: 16px 12px;
+    border-radius: 16px;
   }
 
   .topBar {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    align-items: center;
-    justify-content: center;
-    padding-bottom: 16px;
+    gap: 12px;
+
+    padding-bottom: 12px;
+    margin-bottom: 16px;
   }
 
   .logo {
-    height: 135px;
-    margin: 0 auto;
+    order: 1;
+  }
+
+  .logo_img {
+    height: 80px;
   }
 
   .userActionArea {
-    justify-self: center;
+    order: 2;
+
+    width: 100%;
+
+    display: flex;
+    justify-content: center;
+
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .userActionArea .ant-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    height: auto;
+  }
+
+  .userActionArea .ant-tag {
+    font-size: 11px;
+    padding: 2px 8px;
   }
 
   .header {
-    font-size: 26px;
-    margin-bottom: 28px;
+    margin-bottom: 20px;
+    font-size: 22px;
   }
 
-  .links {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
-  .card {
-    height: 140px;
-    padding: 14px 10px;
-    border-radius: 16px;
-  }
-
-  .icon {
-    width: 44px;
-    height: 44px;
-    font-size: 28px;
-    margin-bottom: 8px;
-    border-radius: 12px;
-  }
-
-  .title {
-    height: 40px;
-    font-size: 12px;
-    line-height: 1.3;
-  }
-
-  .lockedContainer {
-    padding: 40px 16px;
-  }
-}
-
-@media (max-width: 400px) {
-  .linkCard {
-    padding: 16px 12px;
+  .header::after {
+    width: 40px;
+    height: 3px;
   }
 
   .links {
@@ -298,16 +324,99 @@
   }
 
   .card {
-    height: 130px;
+    border-radius: 14px;
   }
 
-  .icon {
-    font-size: 24px;
-    width: 38px;
-    height: 38px;
+  .cardImage {
+    height: 120px;
   }
 
-  .title {
-    font-size: 11px;
+  .cardIcon {
+    font-size: 40px;
+  }
+
+  .cardTitle {
+    padding: 12px 10px;
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 500;
+    min-height: 44px;
+  }
+
+  .lockedContainer {
+    padding: 32px 16px;
+    border-radius: 16px;
+  }
+
+  .lockedIcon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+
+  .lockedText {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .lockedContainer .ant-btn {
+    font-size: 14px;
+    padding: 8px 20px;
+    height: auto;
+  }
+}
+
+/* ===== RESPONSIVE 480px ===== */
+@media (max-width: 480px) {
+  .container {
+    padding: 12px 8px;
+  }
+
+  .linkCard {
+    padding: 12px 8px;
+    border-radius: 12px;
+  }
+
+  .logo_img {
+    height: 60px;
+  }
+
+  .header {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .links {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .card {
+    border-radius: 12px;
+  }
+
+  .cardImage {
+    height: 90px;
+  }
+
+  .cardIcon {
+    font-size: 32px;
+  }
+
+  .cardTitle {
+    padding: 10px 8px;
+    font-size: 10px;
+    line-height: 1.2;
+    min-height: 36px;
+  }
+
+  .userActionArea .ant-btn {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+
+  .userActionArea .ant-tag {
+    font-size: 10px;
+    padding: 1px 6px;
   }
 }

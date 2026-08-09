@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
+import Link from "next/link";
 
 import { Modal, Form, Input, Button, message, Space, Tag, Spin } from "antd";
 import {
@@ -16,8 +17,12 @@ import {
   LockFilled,
 } from "@ant-design/icons";
 
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
+const SESSION_KEY = "userSession";
+const SESSION_TIMEOUT = 30 * 1000;
+const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
 
 export default function Home() {
   const router = useRouter();
@@ -28,83 +33,143 @@ export default function Home() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginForm] = Form.useForm();
 
-  // State untuk data link dari Firestore
   const [links, setLinks] = useState([]);
   const [loadingLinks, setLoadingLinks] = useState(false);
 
-  // 1. Cek Sesi saat Halaman Dimuat
   useEffect(() => {
-    const session = localStorage.getItem("userSession");
+    const handleBeforeUnload = () => {
+      localStorage.removeItem(SESSION_KEY);
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    checkSession();
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      return startInactivityTimer();
+    }
+  }, [currentUser]);
+
+  const checkSession = () => {
+    const navigation = performance.getEntriesByType("navigation")[0];
+    if (navigation?.type === "reload") {
+      localStorage.removeItem(SESSION_KEY);
+      setIsLoginModalOpen(true);
+      setIsCheckingSession(false);
+      return;
+    }
+
+    const session = localStorage.getItem(SESSION_KEY);
     if (session) {
       try {
         const parsedUser = JSON.parse(session);
         setCurrentUser(parsedUser);
-        fetchLinks(); // Ambil data links jika sudah ada sesi login
-      } catch (err) {
-        localStorage.removeItem("userSession");
+        fetchLinks();
+      } catch {
+        localStorage.removeItem(SESSION_KEY);
         setIsLoginModalOpen(true);
       }
     } else {
       setIsLoginModalOpen(true);
     }
     setIsCheckingSession(false);
-  }, []);
+  };
 
-  // 2. Fungsi Ambil Data Links dari Firestore
+  const startInactivityTimer = () => {
+    let timer;
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        handleSessionTimeout();
+      }, SESSION_TIMEOUT);
+    };
+
+    ACTIVITY_EVENTS.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timer);
+      ACTIVITY_EVENTS.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  };
+
+  const handleSessionTimeout = () => {
+    localStorage.removeItem(SESSION_KEY);
+    setCurrentUser(null);
+    setLinks([]);
+    setIsLoginModalOpen(true);
+    message.warning("Session berakhir karena tidak aktif selama 30 detik.");
+  };
+
   const fetchLinks = async () => {
     setLoadingLinks(true);
     try {
-      const snapshot = await getDocs(collection(db, "links"));
+      const snapshot = await getDocs(collection(db, "data_link"));
       const linkList = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
       setLinks(linkList);
-    } catch (error) {
-      console.error("Gagal mengambil data links:", error);
-      message.error("Gagal memuat daftar link dari Firestore");
+    } catch {
+      message.error("Gagal memuat daftar link");
     } finally {
       setLoadingLinks(false);
     }
   };
 
-  // 3. Fungsi Submit Login
   const handleLoginSubmit = async (values) => {
     setLoginLoading(true);
     try {
-      const q = query(
-        collection(db, "users"),
-        where("username", "==", values.username),
-        where("password", "==", values.password)
-      );
+      const inputUsername = values.username.trim();
+      const inputPassword = values.password;
 
-      const querySnapshot = await getDocs(q);
+      const snapshot = await getDocs(collection(db, "users"));
 
-      if (querySnapshot.empty) {
+      let foundUser = null;
+
+      snapshot.docs.forEach((doc) => {
+        const userData = doc.data();
+        if (userData.username?.toLowerCase() === inputUsername.toLowerCase()) {
+          foundUser = userData;
+        }
+      });
+
+      if (!foundUser) {
         message.error("Username atau password salah!");
         return;
       }
 
-      const userData = querySnapshot.docs[0].data();
+      if (foundUser.password !== inputPassword) {
+        message.error("Username atau password salah!");
+        return;
+      }
 
-      localStorage.setItem("userSession", JSON.stringify(userData));
-      setCurrentUser(userData);
+      localStorage.setItem(SESSION_KEY, JSON.stringify(foundUser));
+      setCurrentUser(foundUser);
       setIsLoginModalOpen(false);
       loginForm.resetFields();
 
-      message.success(`Selamat datang, ${userData.username}!`);
-      fetchLinks(); // Memuat link dari Firestore setelah login berhasil
-    } catch (error) {
-      console.error(error);
+      message.success(`Selamat datang, ${foundUser.username}!`);
+      fetchLinks();
+    } catch {
       message.error("Terjadi kesalahan saat login");
     } finally {
       setLoginLoading(false);
     }
   };
 
-  // 4. Fungsi Logout
   const handleLogout = () => {
-    localStorage.removeItem("userSession");
+    localStorage.removeItem(SESSION_KEY);
     setCurrentUser(null);
     setLinks([]);
     setIsLoginModalOpen(true);
@@ -122,9 +187,15 @@ export default function Home() {
   return (
     <main className={styles.container}>
       <div className={styles.linkCard}>
-        {/* Header Bar */}
         <div className={styles.topBar}>
-          <img src="/Logo-CTU.png" alt="Logo" className={styles.logo} />
+          <Link
+            href="https://ctu-indonesia.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.logo}
+          >
+            <img src="/Logo-CTU.png" alt="Logo" className={styles.logo_img} />
+          </Link>
 
           <Space className={styles.userActionArea}>
             {currentUser ? (
@@ -143,11 +214,7 @@ export default function Home() {
                   </Button>
                 )}
 
-                <Button
-                  danger
-                  icon={<LogoutOutlined />}
-                  onClick={handleLogout}
-                >
+                <Button danger icon={<LogoutOutlined />} onClick={handleLogout}>
                   Logout
                 </Button>
               </>
@@ -165,32 +232,48 @@ export default function Home() {
 
         <h1 className={styles.header}>CTU PORTAL</h1>
 
-        {/* Cek Akses & Tampilkan Link dari Firestore */}
         {currentUser ? (
           loadingLinks ? (
             <div style={{ textAlign: "center", padding: "40px 0" }}>
               <Spin size="large" description="Memuat daftar link..." />
             </div>
-          ) : (
+          ) : links.length > 0 ? (
             <div className={styles.links}>
               {links.map((link) => (
                 <a
-                  key={link.id || link.title}
+                  key={link.id}
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.card}
                 >
-                  <div className={styles.left}>
-                    <span className={styles.icon}>{link.icon}</span>
-                    <span className={styles.title}>{link.title}</span>
+                  <div className={styles.cardImage}>
+                    {link.image ? (
+                      <img
+                        src={link.image}
+                        alt={link.name || "Link"}
+                        className={styles.cardImg}
+                      />
+                    ) : (
+                      <span className={styles.cardIcon}>🔗</span>
+                    )}
+                  </div>
+                  <div className={styles.cardTitle}>
+                    {link.name || link.title || "Link"}
                   </div>
                 </a>
               ))}
             </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
+              <p style={{ color: "#999", fontSize: 16 }}>Belum ada link yang tersedia.</p>
+              <p style={{ color: "#ccc", fontSize: 14 }}>
+                Silakan tambahkan link melalui dashboard admin.
+              </p>
+            </div>
           )
         ) : (
-          /* Tampilan saat Belum Login */
           <div className={styles.lockedContainer}>
             <LockFilled className={styles.lockedIcon} />
             <p className={styles.lockedText}>
@@ -208,7 +291,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Modal Login */}
       <Modal
         title="Login"
         open={isLoginModalOpen}
@@ -226,7 +308,11 @@ export default function Home() {
             name="username"
             rules={[{ required: true, message: "Masukkan username Anda!" }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Username" />
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="Username"
+              autoCapitalize="off"
+            />
           </Form.Item>
 
           <Form.Item
