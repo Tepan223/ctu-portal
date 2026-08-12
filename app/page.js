@@ -21,7 +21,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 const SESSION_KEY = "userSession";
-const SESSION_TIMEOUT = 30 * 1000;
+const SESSION_TIMEOUT = 5 * 60 * 1000; 
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
 
 export default function Home() {
@@ -108,7 +108,7 @@ export default function Home() {
     setCurrentUser(null);
     setLinks([]);
     setIsLoginModalOpen(true);
-    message.warning("Session berakhir karena tidak aktif selama 30 detik.");
+    message.warning("Session berakhir karena tidak aktif selama 5 menit.");
   };
 
   const fetchLinks = async () => {

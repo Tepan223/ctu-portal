@@ -28,7 +28,7 @@ import LinkModal from "./components/LinkModal";
 import styles from "./dashboard.module.css";
 
 const SESSION_KEY = "adminSession";
-const SESSION_TIMEOUT = 30 * 1000;
+const SESSION_TIMEOUT = 5 * 60 * 1000; 
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
 
 export default function Dashboard() {
@@ -111,7 +111,7 @@ export default function Dashboard() {
       clearTimeout(timer);
       timer = setTimeout(() => {
         clearSession();
-        message.warning("Session berakhir karena tidak aktif selama 30 detik.");
+        message.warning("Session berakhir karena tidak aktif selama 5 menit.");
       }, SESSION_TIMEOUT);
     };
 
