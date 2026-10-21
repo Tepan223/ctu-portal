@@ -1207,28 +1207,44 @@
   }
 
   .tiles {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     margin-bottom: 16px;
   }
 
   .tile {
+    min-height: 68px;
     gap: 10px;
     padding: 12px;
+    border-radius: 14px;
   }
 
   .tileIcon {
     width: 36px;
     height: 36px;
+    border-radius: 10px;
     font-size: 16px;
   }
 
   .tileCount {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   .tileLabel {
+    margin-top: 2px;
+    overflow: visible;
     font-size: 12px;
+    line-height: 1.25;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .tileActive,
+  .tileActive:hover {
+    box-shadow:
+      0 8px 18px rgba(15, 23, 42, 0.25),
+      0 0 0 2px var(--accent-border);
   }
 
   .infoGrid {
@@ -1377,6 +1393,37 @@
 
   .loginTitle {
     font-size: 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .tile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .tileText {
+    width: 100%;
+  }
+
+  .tileLabel {
+    font-size: 11.5px;
+  }
+
+  .infoTitle {
+    font-size: 17px;
+  }
+
+  .infoSubtitle {
+    font-size: 12px;
+  }
+
+  .infoHeadingIcon {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
   }
 }
 
