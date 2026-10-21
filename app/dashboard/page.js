@@ -10,6 +10,8 @@ import {
   HomeOutlined,
   UserOutlined,
   LinkOutlined,
+  InfoCircleOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import {
   collection,
@@ -25,29 +27,45 @@ import AccountModal from "./components/AccountModal";
 import AccountTable from "./components/AccountTable";
 import LinkTable from "./components/LinkTable";
 import LinkModal from "./components/LinkModal";
+import InformationTable from "./components/InformationTable";
+import InformationModal from "./components/InformationModal";
 import styles from "./dashboard.module.css";
 
 const SESSION_KEY = "adminSession";
-const SESSION_TIMEOUT = 5 * 60 * 1000; 
+const SESSION_TIMEOUT = 5 * 60 * 1000;
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
+
+const fetchCollection = async (name) => {
+  const snapshot = await getDocs(collection(db, name));
+  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+};
 
 export default function Dashboard() {
   const router = useRouter();
   const [admin, setAdmin] = useState(null);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("account");
+
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+
   const [links, setLinks] = useState([]);
   const [linkSearch, setLinkSearch] = useState("");
   const [linkCurrentPage, setLinkCurrentPage] = useState(1);
   const [linkOpen, setLinkOpen] = useState(false);
   const [selectedLink, setSelectedLink] = useState(null);
   const [linkSaving, setLinkSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("account");
+
+  const [infos, setInfos] = useState([]);
+  const [infoSearch, setInfoSearch] = useState("");
+  const [infoCurrentPage, setInfoCurrentPage] = useState(1);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [selectedInfo, setSelectedInfo] = useState(null);
+  const [infoSaving, setInfoSaving] = useState(false);
 
   useEffect(() => {
     initializeSession();
@@ -57,6 +75,7 @@ export default function Dashboard() {
     if (!admin) return;
     loadUsers();
     loadLinks();
+    loadInfos();
     return startInactivityTimer();
   }, [admin]);
 
@@ -67,6 +86,10 @@ export default function Dashboard() {
   useEffect(() => {
     setLinkCurrentPage(1);
   }, [linkSearch]);
+
+  useEffect(() => {
+    setInfoCurrentPage(1);
+  }, [infoSearch]);
 
   const initializeSession = () => {
     const navigation = performance.getEntriesByType("navigation")[0];
@@ -98,10 +121,13 @@ export default function Dashboard() {
     setAdmin(null);
     setUsers([]);
     setLinks([]);
+    setInfos([]);
     setSelectedUser(null);
     setSelectedLink(null);
+    setSelectedInfo(null);
     setAccountOpen(false);
     setLinkOpen(false);
+    setInfoOpen(false);
     setLoginOpen(true);
   };
 
@@ -115,25 +141,18 @@ export default function Dashboard() {
       }, SESSION_TIMEOUT);
     };
 
-    ACTIVITY_EVENTS.forEach((event) => {
-      window.addEventListener(event, resetTimer);
-    });
-
+    ACTIVITY_EVENTS.forEach((event) => window.addEventListener(event, resetTimer));
     resetTimer();
 
     return () => {
       clearTimeout(timer);
-      ACTIVITY_EVENTS.forEach((event) => {
-        window.removeEventListener(event, resetTimer);
-      });
+      ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, resetTimer));
     };
   };
 
   const loadUsers = async () => {
     try {
-      const snapshot = await getDocs(collection(db, "users"));
-      const data = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
-      setUsers(data);
+      setUsers(await fetchCollection("users"));
     } catch (error) {
       console.error(error);
       message.error("Gagal mengambil data akun");
@@ -142,12 +161,19 @@ export default function Dashboard() {
 
   const loadLinks = async () => {
     try {
-      const snapshot = await getDocs(collection(db, "data_link"));
-      const data = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
-      setLinks(data);
+      setLinks(await fetchCollection("data_link"));
     } catch (error) {
       console.error(error);
       message.error("Gagal mengambil data link");
+    }
+  };
+
+  const loadInfos = async () => {
+    try {
+      setInfos(await fetchCollection("data_information"));
+    } catch (error) {
+      console.error(error);
+      message.error("Gagal mengambil data informasi");
     }
   };
 
@@ -155,14 +181,12 @@ export default function Dashboard() {
     setLoginLoading(true);
     try {
       const username = values.username.trim().toLowerCase();
-      const snapshot = await getDocs(collection(db, "users"));
-      const user = snapshot.docs
-        .map((item) => ({ id: item.id, ...item.data() }))
-        .find(
-          (item) =>
-            item.username?.trim().toLowerCase() === username &&
-            item.password === values.password
-        );
+      const accounts = await fetchCollection("users");
+      const user = accounts.find(
+        (item) =>
+          item.username?.trim().toLowerCase() === username &&
+          item.password === values.password
+      );
 
       if (!user) {
         message.error("Username atau password salah");
@@ -174,8 +198,9 @@ export default function Dashboard() {
         return false;
       }
 
-      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-      setAdmin(user);
+      const { password: _password, ...safeUser } = user;
+      localStorage.setItem(SESSION_KEY, JSON.stringify(safeUser));
+      setAdmin(safeUser);
       setLoginOpen(false);
       message.success("Login berhasil");
       return true;
@@ -191,10 +216,6 @@ export default function Dashboard() {
   const handleLogout = () => {
     clearSession();
     message.success("Berhasil logout");
-  };
-
-  const handleHome = () => {
-    router.push("/");
   };
 
   const openAddModal = () => {
@@ -264,14 +285,8 @@ export default function Dashboard() {
   };
 
   const handleSaveLink = async (values) => {
+    setLinkSaving(true);
     try {
-      setLinkSaving(true);
-
-      if (values.image && !values.image.match(/^https?:\/\/.+/)) {
-        message.warning("URL gambar tidak valid, akan diabaikan");
-        values.image = "";
-      }
-
       const data = {
         name: values.name.trim(),
         url: values.url.trim(),
@@ -280,21 +295,15 @@ export default function Dashboard() {
 
       if (selectedLink) {
         await updateDoc(doc(db, "data_link", selectedLink.id), data);
-        setLinks((prev) =>
-          prev.map((item) =>
+        setLinks((current) =>
+          current.map((item) =>
             item.id === selectedLink.id ? { ...item, ...data } : item
           )
         );
         message.success("Link berhasil diperbarui");
       } else {
-        const newLink = await addDoc(collection(db, "data_link"), data);
-        setLinks((prev) => [
-          ...prev,
-          {
-            id: newLink.id,
-            ...data,
-          },
-        ]);
+        const created = await addDoc(collection(db, "data_link"), data);
+        setLinks((current) => [...current, { id: created.id, ...data }]);
         message.success("Link berhasil ditambahkan");
       }
 
@@ -318,71 +327,188 @@ export default function Dashboard() {
     }
   };
 
-  const accountTab = {
-    key: "account",
-    label: (
-      <span>
-        <UserOutlined /> Kelola Akun
-      </span>
-    ),
-    children: (
-      <div>
-        <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Input
-            className={styles.search}
-            prefix={<SearchOutlined />}
-            placeholder="Cari username..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            style={{ width: 300 }}
-          />
-        </div>
-        <div className={styles.tableWrapper}>
-          <AccountTable
-            users={users}
-            search={search}
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            onEdit={openEditModal}
-            onDelete={handleDelete}
-          />
-        </div>
-      </div>
-    ),
+  const openAddInfoModal = () => {
+    setSelectedInfo(null);
+    setInfoOpen(true);
   };
 
-  const linkTab = {
-    key: "link",
-    label: (
-      <span>
-        <LinkOutlined /> Kelola Link
-      </span>
-    ),
-    children: (
-      <div>
-        <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Input
-            className={styles.search}
-            prefix={<SearchOutlined />}
-            placeholder="Cari nama atau URL..."
-            value={linkSearch}
-            onChange={(event) => setLinkSearch(event.target.value)}
-            style={{ width: 300 }}
-          />
-        </div>
-        <div className={styles.tableWrapper}>
-          <LinkTable
-            links={links}
-            linkSearch={linkSearch}
-            linkCurrentPage={linkCurrentPage}
-            setLinkCurrentPage={setLinkCurrentPage}
-            onEdit={openEditLinkModal}
-            onDelete={handleDeleteLink}
-          />
-        </div>
-      </div>
-    ),
+  const openEditInfoModal = (info) => {
+    setSelectedInfo(info);
+    setInfoOpen(true);
   };
+
+  const closeInfoModal = () => {
+    setSelectedInfo(null);
+    setInfoOpen(false);
+  };
+
+  const handleSaveInfo = async (values) => {
+    setInfoSaving(true);
+    try {
+      const data = {
+        name: values.name.trim(),
+        description: values.description?.trim() || "",
+        date: values.date.format("YYYY-MM-DD"),
+        progress: values.progress,
+      };
+
+      if (selectedInfo) {
+        await updateDoc(doc(db, "data_information", selectedInfo.id), data);
+        setInfos((current) =>
+          current.map((item) =>
+            item.id === selectedInfo.id ? { ...item, ...data } : item
+          )
+        );
+        message.success("Informasi berhasil diperbarui");
+      } else {
+        const created = await addDoc(collection(db, "data_information"), data);
+        setInfos((current) => [...current, { id: created.id, ...data }]);
+        message.success("Informasi berhasil ditambahkan");
+      }
+
+      closeInfoModal();
+    } catch (error) {
+      console.error(error);
+      message.error("Gagal menyimpan informasi: " + error.message);
+    } finally {
+      setInfoSaving(false);
+    }
+  };
+
+  const handleDeleteInfo = async (info) => {
+    try {
+      await deleteDoc(doc(db, "data_information", info.id));
+      setInfos((current) => current.filter((item) => item.id !== info.id));
+      message.success("Informasi berhasil dihapus");
+    } catch (error) {
+      console.error(error);
+      message.error("Gagal menghapus informasi");
+    }
+  };
+
+  const renderToolbar = ({ placeholder, value, onChange, addLabel, onAdd }) => (
+    <div className={styles.toolbar}>
+      <Input
+        allowClear
+        size="large"
+        className={styles.search}
+        prefix={<SearchOutlined />}
+        placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <Button
+        type="primary"
+        size="large"
+        icon={<PlusOutlined />}
+        className={styles.addButton}
+        onClick={onAdd}
+      >
+        {addLabel}
+      </Button>
+    </div>
+  );
+
+  const stats = [
+    { label: "Total Akun", value: users.length, icon: <UserOutlined /> },
+    {
+      label: "Total Admin",
+      value: users.filter((user) => user.role === "Admin").length,
+      icon: <SafetyCertificateOutlined />,
+    },
+    { label: "Total Link", value: links.length, icon: <LinkOutlined /> },
+    { label: "Total Informasi", value: infos.length, icon: <InfoCircleOutlined /> },
+  ];
+
+  const tabItems = [
+    {
+      key: "account",
+      label: (
+        <span>
+          <UserOutlined /> Kelola Akun
+        </span>
+      ),
+      children: (
+        <>
+          {renderToolbar({
+            placeholder: "Cari username...",
+            value: search,
+            onChange: setSearch,
+            addLabel: "Tambah Akun",
+            onAdd: openAddModal,
+          })}
+          <div className={styles.tableWrapper}>
+            <AccountTable
+              users={users}
+              search={search}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              onEdit={openEditModal}
+              onDelete={handleDelete}
+            />
+          </div>
+        </>
+      ),
+    },
+    {
+      key: "link",
+      label: (
+        <span>
+          <LinkOutlined /> Kelola Link
+        </span>
+      ),
+      children: (
+        <>
+          {renderToolbar({
+            placeholder: "Cari nama atau URL...",
+            value: linkSearch,
+            onChange: setLinkSearch,
+            addLabel: "Tambah Link",
+            onAdd: openAddLinkModal,
+          })}
+          <div className={styles.tableWrapper}>
+            <LinkTable
+              links={links}
+              linkSearch={linkSearch}
+              linkCurrentPage={linkCurrentPage}
+              setLinkCurrentPage={setLinkCurrentPage}
+              onEdit={openEditLinkModal}
+              onDelete={handleDeleteLink}
+            />
+          </div>
+        </>
+      ),
+    },
+    {
+      key: "information",
+      label: (
+        <span>
+          <InfoCircleOutlined /> Kelola Informasi
+        </span>
+      ),
+      children: (
+        <>
+          {renderToolbar({
+            placeholder: "Cari nama atau progress...",
+            value: infoSearch,
+            onChange: setInfoSearch,
+            addLabel: "Tambah Informasi",
+            onAdd: openAddInfoModal,
+          })}
+          <div className={styles.tableWrapper}>
+            <InformationTable
+              infos={infos}
+              infoSearch={infoSearch}
+              infoCurrentPage={infoCurrentPage}
+              setInfoCurrentPage={setInfoCurrentPage}
+              onEdit={openEditInfoModal}
+              onDelete={handleDeleteInfo}
+            />
+          </div>
+        </>
+      ),
+    },
+  ];
 
   return (
     <main className={styles.page}>
@@ -396,28 +522,29 @@ export default function Dashboard() {
               </p>
             </div>
             <Space wrap>
-              <Button icon={<HomeOutlined />} onClick={handleHome}>
+              <Button size="large" icon={<HomeOutlined />} onClick={() => router.push("/")}>
                 Home
               </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={activeTab === "link" ? openAddLinkModal : openAddModal}
-              >
-                {activeTab === "link" ? "Tambah Link" : "Tambah Akun"}
-              </Button>
-              <Button danger icon={<LogoutOutlined />} onClick={handleLogout}>
+              <Button size="large" danger icon={<LogoutOutlined />} onClick={handleLogout}>
                 Logout
               </Button>
             </Space>
           </header>
+
+          <div className={styles.stats}>
+            {stats.map((stat) => (
+              <div key={stat.label} className={styles.statCard}>
+                <div className={styles.statIcon}>{stat.icon}</div>
+                <div>
+                  <div className={styles.statValue}>{stat.value}</div>
+                  <div className={styles.statLabel}>{stat.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <section className={styles.content}>
-            <Tabs
-              defaultActiveKey="account"
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              items={[accountTab, linkTab]}
-            />
+            <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
           </section>
         </section>
       )}
@@ -435,6 +562,13 @@ export default function Dashboard() {
         onSave={handleSaveLink}
         onCancel={closeLinkModal}
         loading={linkSaving}
+      />
+      <InformationModal
+        open={infoOpen}
+        selectedInfo={selectedInfo}
+        onSave={handleSaveInfo}
+        onCancel={closeInfoModal}
+        loading={infoSaving}
       />
     </main>
   );

@@ -1,121 +1,152 @@
 "use client";
 
-import { useEffect } from "react";
-import { Modal, Form, Input } from "antd";
-import { LinkOutlined } from "@ant-design/icons";
+import { useState } from "react";
+import { Modal, Form, Input, Button } from "antd";
+import {
+  LinkOutlined,
+  GlobalOutlined,
+  TagOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  EditOutlined,
+  BulbOutlined,
+} from "@ant-design/icons";
 
-export default function LinkModal({ 
-  open, 
-  selectedLink, 
-  onSave, 
-  onCancel, 
-  loading 
-}) {
+import styles from "./style/Linkmodal.module.css";
+
+function ImagePreview({ src }) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className={styles.preview}>
+      <span className={styles.previewLabel}>Preview gambar</span>
+      {failed ? (
+        <span className={styles.previewError}>Gambar tidak dapat dimuat</span>
+      ) : (
+        <img
+          src={src}
+          alt="Preview"
+          className={styles.previewImg}
+          onError={() => setFailed(true)}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function LinkModal({ open, selectedLink, onSave, onCancel, loading }) {
   const [form] = Form.useForm();
-
-  useEffect(() => {
-    if (open) {
-      if (selectedLink) {
-        form.setFieldsValue({
-          name: selectedLink.name || "",
-          url: selectedLink.url || "",
-          image: selectedLink.image || "",
-        });
-      } else {
-        form.resetFields();
-      }
-    }
-  }, [open, selectedLink, form]);
-
-  const handleCancel = () => {
-    form.resetFields();
-    onCancel();
-  };
+  const imageUrl = Form.useWatch("image", form);
+  const isEdit = !!selectedLink;
 
   return (
     <Modal
-      title={selectedLink ? "Edit Link" : "Tambah Link Baru"}
       open={open}
-      onCancel={handleCancel}
-      okText={selectedLink ? "Simpan Perubahan" : "Tambah"}
-      cancelText="Batal"
-      onOk={() => form.submit()}
-      confirmLoading={loading}
+      onCancel={onCancel}
+      footer={null}
+      title={null}
       destroyOnHidden
-      width={600}
+      centered
+      width="min(560px, calc(100vw - 32px))"
+      rootClassName={styles.modalRoot}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={onSave}
-        initialValues={{ name: "", url: "", image: "" }}
-      >
-        <Form.Item
-          label="Nama Link"
-          name="name"
-          rules={[{ required: true, message: "Masukkan nama link!" }]}
-        >
-          <Input placeholder="Contoh: Google" />
-        </Form.Item>
-
-        <Form.Item
-          label="URL"
-          name="url"
-          rules={[
-            { required: true, message: "Masukkan URL link!" },
-            { type: "url", message: "Masukkan URL yang valid!" },
-          ]}
-        >
-          <Input placeholder="https://google.com" />
-        </Form.Item>
-
-        <Form.Item
-          label="URL Gambar (opsional)"
-          name="image"
-          tooltip="Masukkan URL gambar dari internet (Google Images, Imgur, dll)"
-          rules={[
-            { 
-              type: "url", 
-              message: "Masukkan URL yang valid!",
-              required: false 
-            },
-          ]}
-        >
-          <Input 
-            placeholder="https://example.com/image.jpg" 
-            prefix={<LinkOutlined />}
-          />
-        </Form.Item>
-
-        <Form.Item shouldUpdate>
-          {({ getFieldValue }) => {
-            const imageUrl = getFieldValue('image');
-            return imageUrl ? (
-              <div style={{ marginTop: 8 }}>
-                <p style={{ marginBottom: 8, color: '#666' }}>Preview Gambar:</p>
-                <img
-                  src={imageUrl}
-                  alt="Preview"
-                  style={{
-                    width: 120,
-                    height: 120,
-                    objectFit: "cover",
-                    borderRadius: 8,
-                    border: "1px solid #ddd",
-                  }}
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
-                />
-              </div>
-            ) : null;
-          }}
-        </Form.Item>
-
-        <div style={{ marginTop: 8, color: "#888", fontSize: 12 }}>
-          💡 Tips: Cari gambar di Google Images, klik kanan → "Copy Image Address"
+      <div className={styles.panel}>
+        <div className={styles.header}>
+          <div className={styles.iconWrap}>
+            {isEdit ? <EditOutlined /> : <PlusOutlined />}
+          </div>
+          <div>
+            <h2 className={styles.title}>{isEdit ? "Edit Link" : "Tambah Link Baru"}</h2>
+            <p className={styles.subtitle}>
+              {isEdit
+                ? "Ubah informasi link yang tampil di portal."
+                : "Isi detail link yang akan tampil di portal."}
+            </p>
+          </div>
         </div>
-      </Form>
+
+        <Form
+          form={form}
+          layout="vertical"
+          preserve={false}
+          requiredMark={false}
+          onFinish={onSave}
+          initialValues={{
+            name: selectedLink?.name ?? "",
+            url: selectedLink?.url ?? "",
+            image: selectedLink?.image ?? "",
+          }}
+          className={styles.form}
+        >
+          <Form.Item
+            label="Nama Link"
+            name="name"
+            rules={[{ required: true, message: "Nama link wajib diisi." }]}
+          >
+            <Input
+              size="large"
+              prefix={<TagOutlined />}
+              placeholder="Contoh: Google"
+              autoFocus
+              className={styles.input}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="URL"
+            name="url"
+            rules={[
+              { required: true, message: "URL wajib diisi." },
+              { type: "url", message: "Masukkan URL yang valid." },
+            ]}
+          >
+            <Input
+              size="large"
+              prefix={<GlobalOutlined />}
+              placeholder="https://google.com"
+              className={styles.input}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="URL Gambar (opsional)"
+            name="image"
+            rules={[{ type: "url", message: "Masukkan URL yang valid." }]}
+          >
+            <Input
+              size="large"
+              prefix={<PictureOutlined />}
+              placeholder="https://example.com/image.jpg"
+              className={styles.input}
+            />
+          </Form.Item>
+
+          {imageUrl && <ImagePreview key={imageUrl} src={imageUrl} />}
+
+          <p className={styles.tips}>
+            <BulbOutlined />
+            <span>
+              Cari gambar di Google Images, klik kanan lalu pilih &quot;Copy Image Address&quot;.
+            </span>
+          </p>
+
+          <div className={styles.footer}>
+            <Button size="large" className={styles.cancelButton} onClick={onCancel}>
+              Batal
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              icon={isEdit ? <EditOutlined /> : <LinkOutlined />}
+              loading={loading}
+              className={styles.submitButton}
+              onClick={() => form.submit()}
+            >
+              {isEdit ? "Simpan Perubahan" : "Tambah"}
+            </Button>
+          </div>
+        </Form>
+      </div>
     </Modal>
   );
 }

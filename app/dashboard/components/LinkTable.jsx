@@ -1,92 +1,100 @@
 "use client";
 
-import { Table, Button, Space, Popconfirm, Typography } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { useMemo, useState } from "react";
+import { Table, Button, Space, Popconfirm, Empty } from "antd";
+import { EditOutlined, DeleteOutlined, LinkOutlined } from "@ant-design/icons";
+import styles from "./style/Linktable.module.css";
 
-const { Text } = Typography;
 const PAGE_SIZE = 5;
 
-export default function LinkTable({ 
-  links, 
-  linkSearch, 
-  linkCurrentPage, 
-  setLinkCurrentPage, 
-  onEdit, 
-  onDelete 
+function LinkImage({ src, alt }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <span className={styles.imagePlaceholder}>
+        <LinkOutlined />
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      className={styles.image}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+export default function LinkTable({
+  links,
+  linkSearch,
+  linkCurrentPage,
+  setLinkCurrentPage,
+  onEdit,
+  onDelete,
 }) {
-  const filteredLinks = linkSearch.trim()
-    ? links.filter(
-        (link) =>
-          link.name?.toLowerCase().includes(linkSearch.trim().toLowerCase()) ||
-          link.url?.toLowerCase().includes(linkSearch.trim().toLowerCase())
-      )
-    : links;
+  const keyword = linkSearch.trim().toLowerCase();
+  const isSearching = keyword.length > 0;
+
+  const filteredLinks = useMemo(() => {
+    if (!isSearching) return links;
+    return links.filter(
+      (link) =>
+        link.name?.toLowerCase().includes(keyword) ||
+        link.url?.toLowerCase().includes(keyword)
+    );
+  }, [links, keyword, isSearching]);
 
   const columns = [
     {
-      title: "Image",
+      title: "Gambar",
       dataIndex: "image",
       key: "image",
       width: 100,
-      render: (image, record) =>
-        image ? (
-          <img
-            src={image}
-            alt={record.name || "Link"}
-            style={{
-              width: 60,
-              height: 60,
-              objectFit: "cover",
-              borderRadius: 8,
-              border: "1px solid #eee",
-            }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-              const parent = e.target.parentNode;
-              const placeholder = document.createElement('span');
-              placeholder.textContent = '🔗';
-              placeholder.style.fontSize = '30px';
-              parent.appendChild(placeholder);
-            }}
-          />
-        ) : (
-          <span style={{ fontSize: '24px' }}>🔗</span>
-        ),
+      onCell: () => ({ "data-label": "Gambar" }),
+      render: (image, record) => (
+        <LinkImage key={image} src={image} alt={record.name || "Link"} />
+      ),
     },
     {
       title: "Nama",
       dataIndex: "name",
       key: "name",
+      onCell: () => ({ "data-label": "Nama" }),
+      render: (name) => <span className={styles.name}>{name || "-"}</span>,
     },
     {
       title: "URL",
       dataIndex: "url",
       key: "url",
+      onCell: () => ({ "data-label": "URL" }),
       render: (url) =>
         url ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-block",
-              maxWidth: 350,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <a href={url} target="_blank" rel="noopener noreferrer" className={styles.urlLink}>
             {url}
           </a>
-        ) : "-",
+        ) : (
+          "-"
+        ),
     },
     {
-      title: "Action",
+      title: "Aksi",
       key: "action",
-      width: 190,
+      width: 220,
+      onCell: () => ({ "data-label": "Aksi", className: styles.actionCell }),
       render: (_, record) => (
-        <Space>
-          <Button type="primary" ghost icon={<EditOutlined />} onClick={() => onEdit(record)}>
+        <Space size={8}>
+          <Button
+            type="primary"
+            ghost
+            icon={<EditOutlined />}
+            className={styles.actionButton}
+            onClick={() => onEdit(record)}
+          >
             Edit
           </Button>
           <Popconfirm
@@ -94,9 +102,12 @@ export default function LinkTable({
             description="Apakah kamu yakin ingin menghapus link ini?"
             okText="Hapus"
             cancelText="Batal"
+            okButtonProps={{ danger: true }}
             onConfirm={() => onDelete(record)}
           >
-            <Button danger icon={<DeleteOutlined />}>Delete</Button>
+            <Button danger icon={<DeleteOutlined />} className={styles.actionButton}>
+              Hapus
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -104,30 +115,37 @@ export default function LinkTable({
   ];
 
   return (
-    <div>
-      <div style={{ 
-        marginBottom: 16, 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center" 
-      }}>
-        <Text strong>
-          Total Link: {filteredLinks.length}
-          {linkSearch.trim() && ` (dari ${links.length} total)`}
-        </Text>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          Menampilkan {filteredLinks.length} dari {links.length} Link
-        </Text>
+    <div className={styles.wrapper}>
+      <div className={styles.summary}>
+        <span className={styles.summaryTitle}>
+          Total Link
+          <span className={styles.summaryBadge}>{filteredLinks.length}</span>
+        </span>
+        {isSearching && (
+          <span className={styles.summaryHint}>
+            Menampilkan {filteredLinks.length} dari {links.length} link
+          </span>
+        )}
       </div>
 
       <Table
         columns={columns}
         dataSource={filteredLinks}
         rowKey="id"
+        locale={{
+          emptyText: (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={isSearching ? "Link tidak ditemukan" : "Belum ada link"}
+            />
+          ),
+        }}
         pagination={{
           current: linkCurrentPage,
           pageSize: PAGE_SIZE,
           onChange: setLinkCurrentPage,
+          showSizeChanger: false,
+          hideOnSinglePage: true,
         }}
       />
     </div>
