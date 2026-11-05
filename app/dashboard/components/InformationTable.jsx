@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo } from "react";
@@ -21,14 +22,22 @@ const PROGRESS_STYLE = {
 
 const formatDate = (value) => {
   if (!value) return "-";
-  const date = new Date(value);
+
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00`)
+    : new Date(value);
+
   if (Number.isNaN(date.getTime())) return "-";
+
   return date.toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
 };
+
+const getStartDate = (record) => record.startDate || record.date || "";
+const getEndDate = (record) => record.endDate || record.date || "";
 
 export default function InformationTable({
   infos,
@@ -38,27 +47,31 @@ export default function InformationTable({
   onEdit,
   onDelete,
 }) {
-  const keyword = infoSearch.trim().toLowerCase();
+  const keyword = (infoSearch || "").trim().toLowerCase();
   const isSearching = keyword.length > 0;
 
   const filtered = useMemo(() => {
     if (!isSearching) return infos;
+
     return infos.filter(
       (item) =>
         item.name?.toLowerCase().includes(keyword) ||
+        item.description?.toLowerCase().includes(keyword) ||
         item.progress?.toLowerCase().includes(keyword)
     );
   }, [infos, keyword, isSearching]);
 
   const columns = [
     {
-      title: "Nama",
+      title: "Nama Project",
       dataIndex: "name",
       key: "name",
       onCell: () => ({ "data-label": "Nama" }),
       render: (name) => (
         <div className={styles.nameCell}>
-          <span className={styles.avatar}>{name?.charAt(0).toUpperCase() || "?"}</span>
+          <span className={styles.avatar}>
+            {name?.charAt(0).toUpperCase() || "?"}
+          </span>
           <span className={styles.name}>{name}</span>
         </div>
       ),
@@ -69,16 +82,25 @@ export default function InformationTable({
       key: "description",
       onCell: () => ({ "data-label": "Deskripsi" }),
       ellipsis: true,
-      render: (text) => <span className={styles.description}>{text || "-"}</span>,
+      render: (text) => (
+        <span className={styles.description}>{text || "-"}</span>
+      ),
     },
     {
-      title: "Tanggal",
-      dataIndex: "date",
-      key: "date",
-      onCell: () => ({ "data-label": "Tanggal" }),
-      width: 140,
-      sorter: (a, b) => new Date(a.date || 0) - new Date(b.date || 0),
-      render: (date) => <span className={styles.date}>{formatDate(date)}</span>,
+      title: "Rentang Tanggal",
+      key: "dateRange",
+      onCell: () => ({ "data-label": "Rentang Tanggal" }),
+      width: 230,
+      sorter: (a, b) =>
+        new Date(getStartDate(a) || 0) -
+        new Date(getStartDate(b) || 0),
+      render: (_, record) => (
+        <span className={styles.date}>
+          {formatDate(getStartDate(record))}
+          {" - "}
+          {formatDate(getEndDate(record))}
+        </span>
+      ),
     },
     {
       title: "Progress",
@@ -86,12 +108,22 @@ export default function InformationTable({
       key: "progress",
       onCell: () => ({ "data-label": "Progress" }),
       width: 190,
-      filters: Object.keys(PROGRESS_STYLE).map((item) => ({ text: item, value: item })),
+      filters: Object.keys(PROGRESS_STYLE).map((item) => ({
+        text: item,
+        value: item,
+      })),
       onFilter: (value, record) => record.progress === value,
       render: (progress) => {
-        const style = PROGRESS_STYLE[progress] ?? PROGRESS_STYLE["Belum Dikerjakan"];
+        const style =
+          PROGRESS_STYLE[progress] ??
+          PROGRESS_STYLE["Belum Dikerjakan"];
+
         return (
-          <Tag color={style.color} icon={style.icon} className={styles.statusTag}>
+          <Tag
+            color={style.color}
+            icon={style.icon}
+            className={styles.statusTag}
+          >
             {progress || "Belum Dikerjakan"}
           </Tag>
         );
@@ -100,7 +132,10 @@ export default function InformationTable({
     {
       title: "Aksi",
       key: "action",
-      onCell: () => ({ "data-label": "Aksi", className: styles.actionCell }),
+      onCell: () => ({
+        "data-label": "Aksi",
+        className: styles.actionCell,
+      }),
       width: 220,
       render: (_, record) => (
         <Space size={8}>
@@ -113,6 +148,7 @@ export default function InformationTable({
           >
             Edit
           </Button>
+
           <Popconfirm
             title="Hapus informasi?"
             description="Apakah kamu yakin ingin menghapus informasi ini?"
@@ -121,7 +157,11 @@ export default function InformationTable({
             okButtonProps={{ danger: true }}
             onConfirm={() => onDelete(record)}
           >
-            <Button danger icon={<DeleteOutlined />} className={styles.actionButton}>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              className={styles.actionButton}
+            >
               Hapus
             </Button>
           </Popconfirm>
@@ -137,6 +177,7 @@ export default function InformationTable({
           Total Informasi
           <span className={styles.summaryBadge}>{filtered.length}</span>
         </span>
+
         {isSearching && (
           <span className={styles.summaryHint}>
             Menampilkan {filtered.length} dari {infos.length} informasi
@@ -152,7 +193,11 @@ export default function InformationTable({
           emptyText: (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={isSearching ? "Informasi tidak ditemukan" : "Belum ada informasi"}
+              description={
+                isSearching
+                  ? "Informasi tidak ditemukan"
+                  : "Belum ada informasi"
+              }
             />
           ),
         }}

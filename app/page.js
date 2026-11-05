@@ -1,3 +1,4 @@
+
 "use client";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,6 @@ import {
   ExclamationCircleOutlined,
   ReloadOutlined,
   InfoCircleOutlined,
-  CalendarOutlined,
   AppstoreOutlined,
   SyncOutlined,
   CheckCircleOutlined,
@@ -27,7 +27,6 @@ import {
   GlobalOutlined,
   MailOutlined,
   WhatsAppOutlined,
-  EnvironmentOutlined,
 } from "@ant-design/icons";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -35,15 +34,35 @@ import styles from "./page.module.css";
 
 const SESSION_KEY = "userSession";
 const SESSION_TIMEOUT = 5 * 60 * 1000;
-const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
+
+const ACTIVITY_EVENTS = [
+  "mousemove",
+  "mousedown",
+  "keydown",
+  "scroll",
+  "touchstart",
+];
+
 const MAX_STAGGER = 12;
 const INFO_PREVIEW_COUNT = 6;
 const DEFAULT_PROGRESS = "Belum Dikerjakan";
 
 const PROGRESS_META = {
-  "Belum Dikerjakan": { tone: styles.toneTodo, step: 1, icon: <ClockCircleOutlined /> },
-  "Dalam Pengerjaan": { tone: styles.toneProgress, step: 2, icon: <SyncOutlined /> },
-  Selesai: { tone: styles.toneDone, step: 3, icon: <CheckCircleOutlined /> },
+  "Belum Dikerjakan": {
+    tone: styles.toneTodo,
+    step: 1,
+    icon: <ClockCircleOutlined />,
+  },
+  "Dalam Pengerjaan": {
+    tone: styles.toneProgress,
+    step: 2,
+    icon: <SyncOutlined />,
+  },
+  Selesai: {
+    tone: styles.toneDone,
+    step: 3,
+    icon: <CheckCircleOutlined />,
+  },
 };
 
 const CONTACTS = [
@@ -67,11 +86,15 @@ const CONTACTS = [
     value: "+62 895-0578-8887",
     href: "https://wa.me/6289505788887",
     icon: <WhatsAppOutlined />,
-  }
+  },
 ];
 
 const INFO_TILES = [
-  { key: "Semua", tone: styles.toneAll, icon: <AppstoreOutlined /> },
+  {
+    key: "Semua",
+    tone: styles.toneAll,
+    icon: <AppstoreOutlined />,
+  },
   ...Object.entries(PROGRESS_META).map(([key, meta]) => ({
     key,
     tone: meta.tone,
@@ -79,10 +102,24 @@ const INFO_TILES = [
   })),
 ];
 
+const parseDate = (value) => {
+  if (!value) return null;
+
+  const date =
+    typeof value.toDate === "function"
+      ? value.toDate()
+      : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date;
+};
+
 const formatDate = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
+  const date = parseDate(value);
+
+  if (!date) return "-";
+
   return date.toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
@@ -90,7 +127,35 @@ const formatDate = (value) => {
   });
 };
 
-const getLinkName = (link) => link.name || link.title || "Link";
+const formatDescription = (value) => {
+  if (!value) return "Tidak ada deskripsi.";
+
+  return String(value)
+    .split(/\r?\n/)
+    .map((line) =>
+      line.trim().replace(/^(?:[-•]|\d+[.)])\s*/, "")
+    )
+    .filter(Boolean)
+    .map((line) => `- ${line}`)
+    .join("\n");
+};
+
+const getLinkName = (link) =>
+  link.name || link.title || "Link";
+
+const normalizeInfo = (record, id) => {
+  const legacyDate = record.date ?? null;
+
+  return {
+    ...record,
+    id,
+    name: record.name ?? "",
+    description: record.description ?? "",
+    startDate: record.startDate ?? legacyDate,
+    endDate: record.endDate ?? legacyDate,
+    progress: record.progress || DEFAULT_PROGRESS,
+  };
+};
 
 const readStoredSession = () => {
   try {
@@ -119,6 +184,7 @@ export default function Home() {
   const [infos, setInfos] = useState([]);
   const [infosStatus, setInfosStatus] = useState("loading");
   const [infoFilter, setInfoFilter] = useState("Semua");
+  const [infoSearch, setInfoSearch] = useState("");
   const [showAllInfos, setShowAllInfos] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -128,17 +194,30 @@ export default function Home() {
     setLinks([]);
     setLinksStatus("idle");
     setLinkSearch("");
+    setInfos([]);
+    setInfosStatus("loading");
     setInfoOpen(false);
     setInfoFilter("Semua");
+    setInfoSearch("");
     setShowAllInfos(false);
     setIsLoginModalOpen(false);
   }, []);
 
   const fetchLinks = useCallback(async () => {
     setLinksStatus("loading");
+
     try {
-      const snapshot = await getDocs(collection(db, "data_link"));
-      setLinks(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+      const snapshot = await getDocs(
+        collection(db, "data_link")
+      );
+
+      setLinks(
+        snapshot.docs.map((item) => ({
+          ...item.data(),
+          id: item.id,
+        }))
+      );
+
       setLinksStatus("done");
     } catch (error) {
       console.error(error);
@@ -149,11 +228,26 @@ export default function Home() {
 
   const fetchInfos = useCallback(async () => {
     setInfosStatus("loading");
+
     try {
-      const snapshot = await getDocs(collection(db, "data_information"));
+      const snapshot = await getDocs(
+        collection(db, "data_information")
+      );
+
       const list = snapshot.docs
-        .map((item) => ({ id: item.id, ...item.data() }))
-        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        .map((item) =>
+          normalizeInfo(item.data(), item.id)
+        )
+        .sort((a, b) => {
+          const dateA =
+            parseDate(a.startDate)?.getTime() || 0;
+
+          const dateB =
+            parseDate(b.startDate)?.getTime() || 0;
+
+          return dateB - dateA;
+        });
+
       setInfos(list);
       setInfosStatus("done");
     } catch (error) {
@@ -163,70 +257,111 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!isCheckingSession && !currentUser) fetchInfos();
+    if (!isCheckingSession && currentUser) {
+      fetchInfos();
+    }
   }, [isCheckingSession, currentUser, fetchInfos]);
 
   useEffect(() => {
-    const clearOnUnload = () => localStorage.removeItem(SESSION_KEY);
+    const clearOnUnload = () => {
+      localStorage.removeItem(SESSION_KEY);
+    };
+
     window.addEventListener("beforeunload", clearOnUnload);
 
     const navigation = performance.getEntriesByType("navigation")[0];
+
     if (navigation?.type === "reload") {
       localStorage.removeItem(SESSION_KEY);
     } else {
       const stored = readStoredSession();
-      if (stored) setCurrentUser(stored);
+
+      if (stored) {
+        setCurrentUser(stored);
+      }
     }
+
     setIsCheckingSession(false);
 
-    return () => window.removeEventListener("beforeunload", clearOnUnload);
+    return () => {
+      window.removeEventListener("beforeunload", clearOnUnload);
+    };
   }, []);
 
   useEffect(() => {
-    if (currentUser) fetchLinks();
+    if (currentUser) {
+      fetchLinks();
+    }
   }, [currentUser, fetchLinks]);
 
   useEffect(() => {
     if (!currentUser) return;
 
     let timer;
+
     const resetTimer = () => {
       clearTimeout(timer);
+
       timer = setTimeout(() => {
         endSession();
-        message.warning("Session berakhir karena tidak aktif selama 5 menit.");
+        message.warning(
+          "Session berakhir karena tidak aktif selama 5 menit."
+        );
       }, SESSION_TIMEOUT);
     };
 
-    ACTIVITY_EVENTS.forEach((event) => window.addEventListener(event, resetTimer));
+    ACTIVITY_EVENTS.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
     resetTimer();
 
     return () => {
       clearTimeout(timer);
-      ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, resetTimer));
+
+      ACTIVITY_EVENTS.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
     };
   }, [currentUser, endSession]);
 
   const filteredLinks = useMemo(() => {
     const keyword = linkSearch.trim().toLowerCase();
+
     if (!keyword) return links;
-    return links.filter((link) => getLinkName(link).toLowerCase().includes(keyword));
+
+    return links.filter((link) =>
+      getLinkName(link).toLowerCase().includes(keyword)
+    );
   }, [links, linkSearch]);
 
   const infoCounts = useMemo(
     () =>
       infos.reduce((counts, item) => {
         const key = item.progress || DEFAULT_PROGRESS;
+
         counts[key] = (counts[key] || 0) + 1;
+
         return counts;
       }, {}),
     [infos]
   );
 
   const filteredInfos = useMemo(() => {
-    if (infoFilter === "Semua") return infos;
-    return infos.filter((item) => (item.progress || DEFAULT_PROGRESS) === infoFilter);
-  }, [infos, infoFilter]);
+    const keyword = infoSearch.trim().toLowerCase();
+
+    return infos.filter((item) => {
+      const matchesStatus =
+        infoFilter === "Semua" ||
+        (item.progress || DEFAULT_PROGRESS) === infoFilter;
+
+      const matchesTitle = (item.name || "")
+        .toLowerCase()
+        .includes(keyword);
+
+      return matchesStatus && matchesTitle;
+    });
+  }, [infos, infoFilter, infoSearch]);
 
   const visibleInfos = showAllInfos
     ? filteredInfos
@@ -239,9 +374,14 @@ export default function Home() {
 
   const handleLoginSubmit = async (values) => {
     setLoginLoading(true);
+
     try {
       const username = values.username.trim().toLowerCase();
-      const snapshot = await getDocs(collection(db, "users"));
+
+      const snapshot = await getDocs(
+        collection(db, "users")
+      );
+
       const matched = snapshot.docs
         .map((item) => item.data())
         .find(
@@ -256,11 +396,19 @@ export default function Home() {
       }
 
       const { password: _password, ...safeUser } = matched;
-      localStorage.setItem(SESSION_KEY, JSON.stringify(safeUser));
+
+      localStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify(safeUser)
+      );
+
       setCurrentUser(safeUser);
       setIsLoginModalOpen(false);
       loginForm.resetFields();
-      message.success(`Selamat datang, ${safeUser.username}!`);
+
+      message.success(
+        `Selamat datang, ${safeUser.username}!`
+      );
     } catch (error) {
       console.error(error);
       message.error("Terjadi kesalahan saat login");
@@ -275,10 +423,16 @@ export default function Home() {
   };
 
   const renderLinks = () => {
-    if (linksStatus === "idle" || linksStatus === "loading") {
+    if (
+      linksStatus === "idle" ||
+      linksStatus === "loading"
+    ) {
       return (
         <div className={styles.state}>
-          <Spin size="large" description="Memuat daftar link..." />
+          <Spin
+            size="large"
+            description="Memuat daftar link..."
+          />
         </div>
       );
     }
@@ -286,11 +440,20 @@ export default function Home() {
     if (linksStatus === "error") {
       return (
         <div className={styles.state}>
-          <div className={`${styles.stateIcon} ${styles.stateIconError}`}>
+          <div
+            className={`${styles.stateIcon} ${styles.stateIconError}`}
+          >
             <ExclamationCircleOutlined />
           </div>
-          <h3 className={styles.stateTitle}>Gagal memuat link</h3>
-          <p className={styles.stateText}>Periksa koneksi Anda lalu coba lagi.</p>
+
+          <h3 className={styles.stateTitle}>
+            Gagal memuat link
+          </h3>
+
+          <p className={styles.stateText}>
+            Periksa koneksi Anda lalu coba lagi.
+          </p>
+
           <Button
             type="primary"
             icon={<ReloadOutlined />}
@@ -309,7 +472,11 @@ export default function Home() {
           <div className={styles.stateIcon}>
             <InboxOutlined />
           </div>
-          <h3 className={styles.stateTitle}>Belum ada link</h3>
+
+          <h3 className={styles.stateTitle}>
+            Belum ada link
+          </h3>
+
           <p className={styles.stateText}>
             Silakan tambahkan link melalui dashboard admin.
           </p>
@@ -322,15 +489,20 @@ export default function Home() {
         <div className={styles.sectionBar}>
           <div className={styles.sectionTitle}>
             Daftar Link
-            <span className={styles.countBadge}>{filteredLinks.length}</span>
+            <span className={styles.countBadge}>
+              {filteredLinks.length}
+            </span>
           </div>
+
           <Input
             allowClear
             size="large"
             prefix={<SearchOutlined />}
             placeholder="Cari link..."
             value={linkSearch}
-            onChange={(event) => setLinkSearch(event.target.value)}
+            onChange={(event) =>
+              setLinkSearch(event.target.value)
+            }
             className={styles.searchInput}
           />
         </div>
@@ -344,7 +516,9 @@ export default function Home() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.card}
-                style={{ "--i": Math.min(index, MAX_STAGGER) }}
+                style={{
+                  "--i": Math.min(index, MAX_STAGGER),
+                }}
               >
                 <div className={styles.cardImage}>
                   {link.image ? (
@@ -355,10 +529,15 @@ export default function Home() {
                       className={styles.cardImg}
                     />
                   ) : (
-                    <span className={styles.cardIcon}>🔗</span>
+                    <span className={styles.cardIcon}>
+                      🔗
+                    </span>
                   )}
                 </div>
-                <div className={styles.cardTitle}>{getLinkName(link)}</div>
+
+                <div className={styles.cardTitle}>
+                  {getLinkName(link)}
+                </div>
               </a>
             ))}
           </div>
@@ -367,8 +546,14 @@ export default function Home() {
             <div className={styles.stateIcon}>
               <SearchOutlined />
             </div>
-            <h3 className={styles.stateTitle}>Link tidak ditemukan</h3>
-            <p className={styles.stateText}>Coba gunakan kata kunci yang lain.</p>
+
+            <h3 className={styles.stateTitle}>
+              Link tidak ditemukan
+            </h3>
+
+            <p className={styles.stateText}>
+              Coba gunakan kata kunci yang lain.
+            </p>
           </div>
         )}
       </>
@@ -379,7 +564,10 @@ export default function Home() {
     if (infosStatus === "loading") {
       return (
         <div className={styles.state}>
-          <Spin size="large" description="Memuat informasi..." />
+          <Spin
+            size="large"
+            description="Memuat project..."
+          />
         </div>
       );
     }
@@ -387,11 +575,20 @@ export default function Home() {
     if (infosStatus === "error") {
       return (
         <div className={styles.state}>
-          <div className={`${styles.stateIcon} ${styles.stateIconError}`}>
+          <div
+            className={`${styles.stateIcon} ${styles.stateIconError}`}
+          >
             <ExclamationCircleOutlined />
           </div>
-          <h3 className={styles.stateTitle}>Gagal memuat informasi</h3>
-          <p className={styles.stateText}>Periksa koneksi Anda lalu coba lagi.</p>
+
+          <h3 className={styles.stateTitle}>
+            Gagal memuat project
+          </h3>
+
+          <p className={styles.stateText}>
+            Periksa koneksi Anda lalu coba lagi.
+          </p>
+
           <Button
             type="primary"
             icon={<ReloadOutlined />}
@@ -407,7 +604,10 @@ export default function Home() {
     if (infos.length === 0) return null;
 
     const doneCount = infoCounts.Selesai || 0;
-    const donePercent = Math.round((doneCount / infos.length) * 100);
+
+    const donePercent = Math.round(
+      (doneCount / infos.length) * 100
+    );
 
     return (
       <section className={styles.infoSection}>
@@ -418,20 +618,31 @@ export default function Home() {
               className={styles.infoToggle}
               aria-expanded={infoOpen}
               aria-controls="info-content"
-              onClick={() => setInfoOpen((current) => !current)}
+              onClick={() =>
+                setInfoOpen((current) => !current)
+              }
             >
               <span className={styles.infoHeadingIcon}>
                 <InfoCircleOutlined />
               </span>
+
               <span className={styles.infoHeadingText}>
-                <span className={styles.infoTitle}>Informasi dan Progress</span>
+                <span className={styles.infoTitle}>
+                  Progress Project
+                </span>
+
                 <span className={styles.infoSubtitle}>
                   {infoOpen
                     ? "Pantau perkembangan terbaru secara transparan."
-                    : "Klik untuk menampilkan detail informasi."}
+                    : "Klik untuk menampilkan detail project."}
                 </span>
               </span>
-              <span className={`${styles.chevron} ${infoOpen ? styles.chevronOpen : ""}`}>
+
+              <span
+                className={`${styles.chevron} ${
+                  infoOpen ? styles.chevronOpen : ""
+                }`}
+              >
                 <DownOutlined />
               </span>
             </button>
@@ -442,52 +653,97 @@ export default function Home() {
               <span>Penyelesaian</span>
               <strong>{donePercent}%</strong>
             </div>
+
             <div className={styles.overallBar}>
-              <span className={styles.overallFill} style={{ width: `${donePercent}%` }} />
+              <span
+                className={styles.overallFill}
+                style={{
+                  width: `${donePercent}%`,
+                }}
+              />
             </div>
+
             <div className={styles.overallNote}>
-              {doneCount} dari {infos.length} informasi selesai
+              {doneCount} dari {infos.length} project selesai
             </div>
           </div>
         </div>
 
         <div
           id="info-content"
-          className={`${styles.collapse} ${infoOpen ? styles.collapseOpen : ""}`}
+          className={`${styles.collapse} ${
+            infoOpen ? styles.collapseOpen : ""
+          }`}
         >
           <div className={styles.collapseInner}>
             <div className={styles.tiles}>
               {INFO_TILES.map((tile) => {
-                const count = tile.key === "Semua" ? infos.length : infoCounts[tile.key] || 0;
+                const count =
+                  tile.key === "Semua"
+                    ? infos.length
+                    : infoCounts[tile.key] || 0;
+
                 const active = infoFilter === tile.key;
+
                 return (
                   <button
                     key={tile.key}
                     type="button"
                     aria-pressed={active}
-                    className={`${styles.tile} ${tile.tone} ${active ? styles.tileActive : ""}`}
-                    onClick={() => handleInfoFilter(tile.key)}
+                    className={`${styles.tile} ${tile.tone} ${
+                      active ? styles.tileActive : ""
+                    }`}
+                    onClick={() =>
+                      handleInfoFilter(tile.key)
+                    }
                   >
-                    <span className={styles.tileIcon}>{tile.icon}</span>
+                    <span className={styles.tileIcon}>
+                      {tile.icon}
+                    </span>
+
                     <span className={styles.tileText}>
-                      <span className={styles.tileCount}>{count}</span>
-                      <span className={styles.tileLabel}>{tile.key}</span>
+                      <span className={styles.tileCount}>
+                        {count}
+                      </span>
+
+                      <span className={styles.tileLabel}>
+                        {tile.key}
+                      </span>
                     </span>
                   </button>
                 );
               })}
             </div>
 
+            <Input
+              allowClear
+              size="large"
+              prefix={<SearchOutlined />}
+              placeholder="Cari title project..."
+              value={infoSearch}
+              onChange={(event) => {
+                setInfoSearch(event.target.value);
+                setShowAllInfos(false);
+              }}
+              className={styles.infoSearchInput}
+            />
+
             {visibleInfos.length > 0 ? (
               <div className={styles.infoGrid}>
                 {visibleInfos.map((info, index) => {
-                  const progress = PROGRESS_META[info.progress] ? info.progress : DEFAULT_PROGRESS;
+                  const progress = PROGRESS_META[info.progress]
+                    ? info.progress
+                    : DEFAULT_PROGRESS;
+
                   const meta = PROGRESS_META[progress];
+
                   return (
                     <article
                       key={info.id}
                       className={`${styles.infoCard} ${meta.tone}`}
-                      style={{ "--i": Math.min(index, MAX_STAGGER) }}
+                      style={{
+                        "--i": Math.min(index, MAX_STAGGER),
+                      }}
                     >
                       <div className={styles.infoMeta}>
                         <span className={styles.statusTag}>
@@ -496,15 +752,27 @@ export default function Home() {
                         </span>
                       </div>
 
-                      <h3 className={styles.infoName}>{info.name || "Tanpa nama"}</h3>
+                      <h3 className={styles.infoName}>
+                        {info.name || "Tanpa nama"}
+                      </h3>
+
                       <p className={styles.infoDesc}>
-                        {info.description || "Tidak ada deskripsi."}
+                        {formatDescription(info.description)}
                       </p>
 
                       <div className={styles.infoFooter}>
-                        <span className={styles.infoDate}>
-                          <CalendarOutlined /> {formatDate(info.date)}
-                        </span>
+                        <div className={styles.infoDate}>
+                          <span>
+                            Mulai:{" "}
+                            {formatDate(info.startDate)}
+                          </span>
+                          -
+                          <span>
+                            Selesai:{" "}
+                            {formatDate(info.endDate)}
+                          </span>
+                        </div>
+
                         <div
                           className={styles.track}
                           role="img"
@@ -514,7 +782,9 @@ export default function Home() {
                             <span
                               key={step}
                               className={`${styles.trackSeg} ${
-                                step <= meta.step ? styles.trackSegOn : ""
+                                step <= meta.step
+                                  ? styles.trackSegOn
+                                  : ""
                               }`}
                             />
                           ))}
@@ -529,8 +799,16 @@ export default function Home() {
                 <div className={styles.stateIcon}>
                   <InboxOutlined />
                 </div>
-                <h3 className={styles.stateTitle}>Belum ada informasi</h3>
-                <p className={styles.stateText}>Tidak ada informasi dengan status ini.</p>
+
+                <h3 className={styles.stateTitle}>
+                  Belum ada project
+                </h3>
+
+                <p className={styles.stateText}>
+                  {infoSearch.trim()
+                    ? "Project dengan title tersebut tidak ditemukan."
+                    : "Tidak ada project dengan status ini."}
+                </p>
               </div>
             )}
 
@@ -538,7 +816,9 @@ export default function Home() {
               <div className={styles.moreWrap}>
                 <Button
                   className={styles.moreButton}
-                  onClick={() => setShowAllInfos((current) => !current)}
+                  onClick={() =>
+                    setShowAllInfos((current) => !current)
+                  }
                 >
                   {showAllInfos
                     ? "Tampilkan lebih sedikit"
@@ -555,7 +835,10 @@ export default function Home() {
   if (isCheckingSession) {
     return (
       <div className={styles.loadingContainer}>
-        <Spin size="large" description="Memeriksa sesi..." />
+        <Spin
+          size="large"
+          description="Memeriksa sesi..."
+        />
       </div>
     );
   }
@@ -570,14 +853,22 @@ export default function Home() {
             rel="noopener noreferrer"
             className={styles.logo}
           >
-            <img src="/Logo-CTU.png" alt="Logo CTU" className={styles.logoImg} />
+            <img
+              src="/Logo-CTU.png"
+              alt="Logo CTU"
+              className={styles.logoImg}
+            />
           </a>
 
           <div className={styles.userActionArea}>
             {currentUser && (
               <>
                 <Tag
-                  color={currentUser.role === "Admin" ? "blue" : "green"}
+                  color={
+                    currentUser.role === "Admin"
+                      ? "blue"
+                      : "green"
+                  }
                   className={styles.userTag}
                 >
                   {currentUser.username} ({currentUser.role})
@@ -589,7 +880,9 @@ export default function Home() {
                       type="primary"
                       icon={<DashboardOutlined />}
                       className={`${styles.actionButton} ${styles.dashboardButton}`}
-                      onClick={() => router.push("/dashboard")}
+                      onClick={() =>
+                        router.push("/dashboard")
+                      }
                     >
                       Dashboard
                     </Button>
@@ -613,43 +906,56 @@ export default function Home() {
 
         <div className={styles.content}>
           {currentUser ? (
-            renderLinks()
-          ) : (
             <>
               {renderInfos()}
-              <div className={styles.lockedContainer}>
-                <div className={styles.lockedIconWrap}>
-                  <LockFilled className={styles.lockedIcon} />
-                </div>
-
-                <h2 className={styles.lockedTitle}>Akses terkunci</h2>
-                <p className={styles.lockedText}>
-                  Masuk dengan akun Anda untuk membuka daftar link portal CTU.
-                </p>
-
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<LoginOutlined />}
-                  className={styles.lockedButton}
-                  onClick={() => setIsLoginModalOpen(true)}
-                >
-                  Masuk Sekarang
-                </Button>
-
-                <p className={styles.lockedNote}>
-                  Sesi berakhir otomatis setelah 5 menit tidak aktif.
-                </p>
-              </div>
+              {renderLinks()}
             </>
+          ) : (
+            <div className={styles.lockedContainer}>
+              <div className={styles.lockedIconWrap}>
+                <LockFilled
+                  className={styles.lockedIcon}
+                />
+              </div>
+
+              <h2 className={styles.lockedTitle}>
+                Akses terkunci
+              </h2>
+
+              <p className={styles.lockedText}>
+                Masuk dengan akun Anda untuk membuka daftar
+                link portal CTU.
+              </p>
+
+              <Button
+                type="primary"
+                size="large"
+                icon={<LoginOutlined />}
+                className={styles.lockedButton}
+                onClick={() =>
+                  setIsLoginModalOpen(true)
+                }
+              >
+                Masuk Sekarang
+              </Button>
+
+              <p className={styles.lockedNote}>
+                Sesi berakhir otomatis setelah 5 menit tidak
+                aktif.
+              </p>
+            </div>
           )}
         </div>
 
         <footer className={styles.contact}>
           <div className={styles.contactHeader}>
-            <h2 className={styles.contactTitle}>Contact</h2>
+            <h2 className={styles.contactTitle}>
+              Contact
+            </h2>
+
             <p className={styles.contactSubtitle}>
-              Ada pertanyaan? Hubungi kami melalui kontak berikut.
+              Ada pertanyaan? Hubungi kami melalui kontak
+              berikut.
             </p>
           </div>
 
@@ -657,34 +963,45 @@ export default function Home() {
             {CONTACTS.map((contact) => {
               const content = (
                 <>
-                  <span className={styles.contactIcon}>{contact.icon}</span>
+                  <span className={styles.contactIcon}>
+                    {contact.icon}
+                  </span>
+
                   <span className={styles.contactText}>
-                    <span className={styles.contactLabel}>{contact.label}</span>
-                    <span className={styles.contactValue}>{contact.value}</span>
+                    <span className={styles.contactLabel}>
+                      {contact.label}
+                    </span>
+
+                    <span className={styles.contactValue}>
+                      {contact.value}
+                    </span>
                   </span>
                 </>
               );
 
-              return contact.href ? (
+              return (
                 <a
                   key={contact.key}
                   href={contact.href}
-                  target={contact.href.startsWith("http") ? "_blank" : undefined}
+                  target={
+                    contact.href.startsWith("http")
+                      ? "_blank"
+                      : undefined
+                  }
                   rel="noopener noreferrer"
-                  className={`${styles.contactItem} ${styles.contactLink}`}
+                  className={`${styles.contactItem} ${
+                    styles.contactLink
+                  }`}
                 >
                   {content}
                 </a>
-              ) : (
-                <div key={contact.key} className={styles.contactItem}>
-                  {content}
-                </div>
               );
             })}
           </div>
 
           <p className={styles.copyright}>
-            © {new Date().getFullYear()} CTU Indonesia. All rights reserved.
+            © {new Date().getFullYear()} CTU Indonesia. All
+            rights reserved.
           </p>
         </footer>
       </div>
@@ -710,7 +1027,10 @@ export default function Home() {
             <LoginOutlined />
           </div>
 
-          <h2 className={styles.loginTitle}>Masuk ke CTU Portal</h2>
+          <h2 className={styles.loginTitle}>
+            Masuk ke CTU Portal
+          </h2>
+
           <p className={styles.loginSubtitle}>
             Gunakan akun Anda untuk membuka daftar link.
           </p>
@@ -725,7 +1045,12 @@ export default function Home() {
             <Form.Item
               label="Username"
               name="username"
-              rules={[{ required: true, message: "Username wajib diisi." }]}
+              rules={[
+                {
+                  required: true,
+                  message: "Username wajib diisi.",
+                },
+              ]}
             >
               <Input
                 size="large"
@@ -739,24 +1064,38 @@ export default function Home() {
             </Form.Item>
 
             <Form.Item
-              label="Password"
+              label="PIN"
               name="password"
-              rules={[{ required: true, message: "Password wajib diisi." }]}
-              style={{ marginBottom: capsOn ? 8 : 24 }}
+              rules={[
+                {
+                  required: true,
+                  message: "Password wajib diisi.",
+                },
+              ]}
+              style={{
+                marginBottom: capsOn ? 8 : 24,
+              }}
             >
               <Input.Password
                 size="large"
                 prefix={<LockOutlined />}
-                placeholder="Masukkan password"
+                placeholder="Masukkan PIN"
                 autoComplete="current-password"
                 className={styles.loginInput}
-                onKeyUp={(event) => setCapsOn(!!event.getModifierState?.("CapsLock"))}
+                onKeyUp={(event) =>
+                  setCapsOn(
+                    !!event.getModifierState?.("CapsLock")
+                  )
+                }
                 onBlur={() => setCapsOn(false)}
               />
             </Form.Item>
 
             {capsOn && (
-              <p className={styles.loginCaps} role="alert">
+              <p
+                className={styles.loginCaps}
+                role="alert"
+              >
                 <WarningOutlined /> Caps Lock sedang aktif.
               </p>
             )}
@@ -775,7 +1114,8 @@ export default function Home() {
           </Form>
 
           <p className={styles.loginNote}>
-            <ClockCircleOutlined /> Sesi berakhir otomatis setelah 5 menit tidak aktif.
+            <ClockCircleOutlined /> Sesi berakhir otomatis
+            setelah 5 menit tidak aktif.
           </p>
         </div>
       </Modal>

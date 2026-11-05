@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -33,15 +34,26 @@ import styles from "./dashboard.module.css";
 
 const SESSION_KEY = "adminSession";
 const SESSION_TIMEOUT = 5 * 60 * 1000;
-const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
+const ACTIVITY_EVENTS = [
+  "mousemove",
+  "mousedown",
+  "keydown",
+  "scroll",
+  "touchstart",
+];
 
 const fetchCollection = async (name) => {
   const snapshot = await getDocs(collection(db, name));
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+
+  return snapshot.docs.map((item) => ({
+    id: item.id,
+    ...item.data(),
+  }));
 };
 
 export default function Dashboard() {
   const router = useRouter();
+
   const [admin, setAdmin] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -73,9 +85,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!admin) return;
+
     loadUsers();
     loadLinks();
     loadInfos();
+
     return startInactivityTimer();
   }, [admin]);
 
@@ -93,12 +107,14 @@ export default function Dashboard() {
 
   const initializeSession = () => {
     const navigation = performance.getEntriesByType("navigation")[0];
+
     if (navigation?.type === "reload") {
       clearSession();
       return;
     }
 
     const session = localStorage.getItem(SESSION_KEY);
+
     if (!session) {
       setLoginOpen(true);
       return;
@@ -106,10 +122,12 @@ export default function Dashboard() {
 
     try {
       const user = JSON.parse(session);
+
       if (user.role !== "Admin") {
         clearSession();
         return;
       }
+
       setAdmin(user);
     } catch {
       clearSession();
@@ -118,6 +136,7 @@ export default function Dashboard() {
 
   const clearSession = () => {
     localStorage.removeItem(SESSION_KEY);
+
     setAdmin(null);
     setUsers([]);
     setLinks([]);
@@ -133,20 +152,30 @@ export default function Dashboard() {
 
   const startInactivityTimer = () => {
     let timer;
+
     const resetTimer = () => {
       clearTimeout(timer);
+
       timer = setTimeout(() => {
         clearSession();
-        message.warning("Session berakhir karena tidak aktif selama 5 menit.");
+        message.warning(
+          "Session berakhir karena tidak aktif selama 5 menit."
+        );
       }, SESSION_TIMEOUT);
     };
 
-    ACTIVITY_EVENTS.forEach((event) => window.addEventListener(event, resetTimer));
+    ACTIVITY_EVENTS.forEach((event) =>
+      window.addEventListener(event, resetTimer)
+    );
+
     resetTimer();
 
     return () => {
       clearTimeout(timer);
-      ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, resetTimer));
+
+      ACTIVITY_EVENTS.forEach((event) =>
+        window.removeEventListener(event, resetTimer)
+      );
     };
   };
 
@@ -173,15 +202,17 @@ export default function Dashboard() {
       setInfos(await fetchCollection("data_information"));
     } catch (error) {
       console.error(error);
-      message.error("Gagal mengambil data informasi");
+      message.error("Gagal mengambil data project");
     }
   };
 
   const handleLogin = async (values) => {
     setLoginLoading(true);
+
     try {
       const username = values.username.trim().toLowerCase();
       const accounts = await fetchCollection("users");
+
       const user = accounts.find(
         (item) =>
           item.username?.trim().toLowerCase() === username &&
@@ -199,10 +230,16 @@ export default function Dashboard() {
       }
 
       const { password: _password, ...safeUser } = user;
-      localStorage.setItem(SESSION_KEY, JSON.stringify(safeUser));
+
+      localStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify(safeUser)
+      );
+
       setAdmin(safeUser);
       setLoginOpen(false);
       message.success("Login berhasil");
+
       return true;
     } catch (error) {
       console.error(error);
@@ -236,11 +273,20 @@ export default function Dashboard() {
   const handleSave = async (values) => {
     try {
       if (selectedUser) {
-        const data = { username: values.username, role: values.role };
+        const data = {
+          username: values.username,
+          role: values.role,
+        };
+
         if (values.password) {
           data.password = values.password;
         }
-        await updateDoc(doc(db, "users", selectedUser.id), data);
+
+        await updateDoc(
+          doc(db, "users", selectedUser.id),
+          data
+        );
+
         message.success("Akun berhasil diperbarui");
       } else {
         await addDoc(collection(db, "users"), {
@@ -248,8 +294,10 @@ export default function Dashboard() {
           password: values.password,
           role: values.role,
         });
+
         message.success("Akun berhasil ditambahkan");
       }
+
       closeAccountModal();
       await loadUsers();
     } catch (error) {
@@ -261,7 +309,11 @@ export default function Dashboard() {
   const handleDelete = async (id) => {
     try {
       await deleteDoc(doc(db, "users", id));
-      setUsers((current) => current.filter((user) => user.id !== id));
+
+      setUsers((current) =>
+        current.filter((user) => user.id !== id)
+      );
+
       message.success("Akun berhasil dihapus");
     } catch (error) {
       console.error(error);
@@ -286,6 +338,7 @@ export default function Dashboard() {
 
   const handleSaveLink = async (values) => {
     setLinkSaving(true);
+
     try {
       const data = {
         name: values.name.trim(),
@@ -294,16 +347,31 @@ export default function Dashboard() {
       };
 
       if (selectedLink) {
-        await updateDoc(doc(db, "data_link", selectedLink.id), data);
+        await updateDoc(
+          doc(db, "data_link", selectedLink.id),
+          data
+        );
+
         setLinks((current) =>
           current.map((item) =>
-            item.id === selectedLink.id ? { ...item, ...data } : item
+            item.id === selectedLink.id
+              ? { ...item, ...data }
+              : item
           )
         );
+
         message.success("Link berhasil diperbarui");
       } else {
-        const created = await addDoc(collection(db, "data_link"), data);
-        setLinks((current) => [...current, { id: created.id, ...data }]);
+        const created = await addDoc(
+          collection(db, "data_link"),
+          data
+        );
+
+        setLinks((current) => [
+          ...current,
+          { id: created.id, ...data },
+        ]);
+
         message.success("Link berhasil ditambahkan");
       }
 
@@ -318,8 +386,14 @@ export default function Dashboard() {
 
   const handleDeleteLink = async (link) => {
     try {
-      await deleteDoc(doc(db, "data_link", link.id));
-      setLinks((current) => current.filter((item) => item.id !== link.id));
+      await deleteDoc(
+        doc(db, "data_link", link.id)
+      );
+
+      setLinks((current) =>
+        current.filter((item) => item.id !== link.id)
+      );
+
       message.success("Link berhasil dihapus");
     } catch (error) {
       console.error(error);
@@ -344,32 +418,59 @@ export default function Dashboard() {
 
   const handleSaveInfo = async (values) => {
     setInfoSaving(true);
+
     try {
+      const startDate = values.startDate;
+      const endDate = values.endDate;
+
+      if (!startDate || !endDate) {
+        message.error("Tanggal mulai dan tanggal selesai wajib diisi.");
+        return;
+      }
+
       const data = {
         name: values.name.trim(),
         description: values.description?.trim() || "",
-        date: values.date.format("YYYY-MM-DD"),
+        startDate: startDate.format("YYYY-MM-DD"),
+        endDate: endDate.format("YYYY-MM-DD"),
         progress: values.progress,
       };
 
       if (selectedInfo) {
-        await updateDoc(doc(db, "data_information", selectedInfo.id), data);
+        await updateDoc(
+          doc(db, "data_information", selectedInfo.id),
+          data
+        );
+
         setInfos((current) =>
           current.map((item) =>
-            item.id === selectedInfo.id ? { ...item, ...data } : item
+            item.id === selectedInfo.id
+              ? { ...item, ...data }
+              : item
           )
         );
-        message.success("Informasi berhasil diperbarui");
+
+        message.success("Project berhasil diperbarui");
       } else {
-        const created = await addDoc(collection(db, "data_information"), data);
-        setInfos((current) => [...current, { id: created.id, ...data }]);
-        message.success("Informasi berhasil ditambahkan");
+        const created = await addDoc(
+          collection(db, "data_information"),
+          data
+        );
+
+        setInfos((current) => [
+          ...current,
+          { id: created.id, ...data },
+        ]);
+
+        message.success("Project berhasil ditambahkan");
       }
 
       closeInfoModal();
     } catch (error) {
       console.error(error);
-      message.error("Gagal menyimpan informasi: " + error.message);
+      message.error(
+        "Gagal menyimpan project: " + error.message
+      );
     } finally {
       setInfoSaving(false);
     }
@@ -377,16 +478,28 @@ export default function Dashboard() {
 
   const handleDeleteInfo = async (info) => {
     try {
-      await deleteDoc(doc(db, "data_information", info.id));
-      setInfos((current) => current.filter((item) => item.id !== info.id));
-      message.success("Informasi berhasil dihapus");
+      await deleteDoc(
+        doc(db, "data_information", info.id)
+      );
+
+      setInfos((current) =>
+        current.filter((item) => item.id !== info.id)
+      );
+
+      message.success("Project berhasil dihapus");
     } catch (error) {
       console.error(error);
-      message.error("Gagal menghapus informasi");
+      message.error("Gagal menghapus project");
     }
   };
 
-  const renderToolbar = ({ placeholder, value, onChange, addLabel, onAdd }) => (
+  const renderToolbar = ({
+    placeholder,
+    value,
+    onChange,
+    addLabel,
+    onAdd,
+  }) => (
     <div className={styles.toolbar}>
       <Input
         allowClear
@@ -397,6 +510,7 @@ export default function Dashboard() {
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
+
       <Button
         type="primary"
         size="large"
@@ -410,14 +524,26 @@ export default function Dashboard() {
   );
 
   const stats = [
-    { label: "Total Akun", value: users.length, icon: <UserOutlined /> },
+    {
+      label: "Total Akun",
+      value: users.length,
+      icon: <UserOutlined />,
+    },
     {
       label: "Total Admin",
       value: users.filter((user) => user.role === "Admin").length,
       icon: <SafetyCertificateOutlined />,
     },
-    { label: "Total Link", value: links.length, icon: <LinkOutlined /> },
-    { label: "Total Informasi", value: infos.length, icon: <InfoCircleOutlined /> },
+    {
+      label: "Total Link",
+      value: links.length,
+      icon: <LinkOutlined />,
+    },
+    {
+      label: "Total Project",
+      value: infos.length,
+      icon: <InfoCircleOutlined />,
+    },
   ];
 
   const tabItems = [
@@ -437,6 +563,7 @@ export default function Dashboard() {
             addLabel: "Tambah Akun",
             onAdd: openAddModal,
           })}
+
           <div className={styles.tableWrapper}>
             <AccountTable
               users={users}
@@ -466,6 +593,7 @@ export default function Dashboard() {
             addLabel: "Tambah Link",
             onAdd: openAddLinkModal,
           })}
+
           <div className={styles.tableWrapper}>
             <LinkTable
               links={links}
@@ -483,7 +611,7 @@ export default function Dashboard() {
       key: "information",
       label: (
         <span>
-          <InfoCircleOutlined /> Kelola Informasi
+          <InfoCircleOutlined /> Kelola Project
         </span>
       ),
       children: (
@@ -492,9 +620,10 @@ export default function Dashboard() {
             placeholder: "Cari nama atau progress...",
             value: infoSearch,
             onChange: setInfoSearch,
-            addLabel: "Tambah Informasi",
+            addLabel: "Tambah Project",
             onAdd: openAddInfoModal,
           })}
+
           <div className={styles.tableWrapper}>
             <InformationTable
               infos={infos}
@@ -517,15 +646,27 @@ export default function Dashboard() {
           <header className={styles.header}>
             <div>
               <h1 className={styles.title}>Dashboard Admin</h1>
+
               <p className={styles.welcome}>
                 Selamat datang, <strong>{admin.username}</strong>
               </p>
             </div>
+
             <Space wrap>
-              <Button size="large" icon={<HomeOutlined />} onClick={() => router.push("/")}>
+              <Button
+                size="large"
+                icon={<HomeOutlined />}
+                onClick={() => router.push("/")}
+              >
                 Home
               </Button>
-              <Button size="large" danger icon={<LogoutOutlined />} onClick={handleLogout}>
+
+              <Button
+                size="large"
+                danger
+                icon={<LogoutOutlined />}
+                onClick={handleLogout}
+              >
                 Logout
               </Button>
             </Space>
@@ -534,28 +675,46 @@ export default function Dashboard() {
           <div className={styles.stats}>
             {stats.map((stat) => (
               <div key={stat.label} className={styles.statCard}>
-                <div className={styles.statIcon}>{stat.icon}</div>
+                <div className={styles.statIcon}>
+                  {stat.icon}
+                </div>
+
                 <div>
-                  <div className={styles.statValue}>{stat.value}</div>
-                  <div className={styles.statLabel}>{stat.label}</div>
+                  <div className={styles.statValue}>
+                    {stat.value}
+                  </div>
+
+                  <div className={styles.statLabel}>
+                    {stat.label}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
           <section className={styles.content}>
-            <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+            <Tabs
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              items={tabItems}
+            />
           </section>
         </section>
       )}
 
-      <LoginModal open={loginOpen} loading={loginLoading} onLogin={handleLogin} />
+      <LoginModal
+        open={loginOpen}
+        loading={loginLoading}
+        onLogin={handleLogin}
+      />
+
       <AccountModal
         open={accountOpen}
         selectedUser={selectedUser}
         onSave={handleSave}
         onCancel={closeAccountModal}
       />
+
       <LinkModal
         open={linkOpen}
         selectedLink={selectedLink}
@@ -563,6 +722,7 @@ export default function Dashboard() {
         onCancel={closeLinkModal}
         loading={linkSaving}
       />
+
       <InformationModal
         open={infoOpen}
         selectedInfo={selectedInfo}
