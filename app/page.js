@@ -82,7 +82,7 @@ const CONTACTS = [
   },
   {
     key: "whatsapp",
-    label: "WhatsApp",
+    label: "Support (WA)",
     value: "+62 895-0578-8887",
     href: "https://wa.me/6289505788887",
     icon: <WhatsAppOutlined />,
@@ -633,7 +633,7 @@ export default function Home() {
 
                 <span className={styles.infoSubtitle}>
                   {infoOpen
-                    ? "Pantau perkembangan terbaru secara transparan."
+                    ? "Klik untuk menyembunyikan detail project."
                     : "Klik untuk menampilkan detail project."}
                 </span>
               </span>
